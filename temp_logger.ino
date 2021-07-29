@@ -5,9 +5,9 @@
 #include "ArduinoLowPower.h"
 
 // Pins
-const int buttonPin = 5;
-const int chipSelectPin = 4;
-const int greenLed = 8;
+const int button_pin = 5;
+const int chip_select_pin = 4;
+const int green_led = 8;
 
 // TODO: Read chunk / cluster size from filesystem? Read SD card preferred write size?
 const uint64_t write_chunk = 4096;
@@ -22,11 +22,11 @@ Adafruit_Si7021 sensor;
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(greenLed, OUTPUT);
+  pinMode(green_led, OUTPUT);
 
   // Turn on both LEDs during setup.
   digitalWrite(LED_BUILTIN, HIGH);
-  digitalWrite(greenLed, HIGH);
+  digitalWrite(green_led, HIGH);
 
   // Open serial communications and wait for port to open
   Serial.begin(31969);
@@ -37,22 +37,22 @@ void setup() {
   Serial.println("Starting setup");
 
   // Failed to find MicroSD card: solid green.
-  if (!SD.begin(chipSelectPin)) {
+  if (!SD.begin(chip_select_pin)) {
     Serial.println("MicroSD card failed, or not present.");
     digitalWrite(LED_BUILTIN, LOW);
-    digitalWrite(greenLed, HIGH);
+    digitalWrite(green_led, HIGH);
     while (true);
   }
 
-  pinMode(buttonPin, INPUT_PULLUP);
-  LowPower.attachInterruptWakeup(digitalPinToInterrupt(buttonPin), button_down, FALLING);
+  pinMode(button_pin, INPUT_PULLUP);
+  LowPower.attachInterruptWakeup(digitalPinToInterrupt(button_pin), button_down, FALLING);
 
   // Failed to find sensor: solid red.
   sensor = Adafruit_Si7021();
   if (!sensor.begin()) {
     Serial.println("Si7021 sensor not found.");
     digitalWrite(LED_BUILTIN, HIGH);
-    digitalWrite(greenLed, LOW);
+    digitalWrite(green_led, LOW);
     while (true);
   }
 
@@ -81,9 +81,9 @@ void setup() {
     Serial.println("Failed to open datalog.txt");
     digitalWrite(LED_BUILTIN, LOW);
     while (true) {
-      digitalWrite(greenLed, HIGH);
+      digitalWrite(green_led, HIGH);
       delayMicroseconds(500000);
-      digitalWrite(greenLed, LOW);
+      digitalWrite(green_led, LOW);
       delayMicroseconds(500000);
     }
   }
@@ -92,14 +92,14 @@ void setup() {
 
   // Turn off LEDs to indicate setup finished.
   digitalWrite(LED_BUILTIN, LOW);
-  digitalWrite(greenLed, LOW);
+  digitalWrite(green_led, LOW);
 
   Serial.println("Setup complete");
   Serial.flush();
 }
 
 void loop() {
-  if (digitalRead(buttonPin) == LOW && button_pressed && (micros() - button_last_down) > debounce_microseconds) {
+  if (digitalRead(button_pin) == LOW && button_pressed && (micros() - button_last_down) > debounce_microseconds) {
     flush_log();
     button_pressed = false;
   }
@@ -129,9 +129,9 @@ void log_sensor() {
 }
 
 void flush_log() {
-  digitalWrite(greenLed, HIGH);
+  digitalWrite(green_led, HIGH);
   dataFile.flush();
-  digitalWrite(greenLed, LOW);
+  digitalWrite(green_led, LOW);
 }
 
 void button_down() {
