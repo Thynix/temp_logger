@@ -5,6 +5,7 @@
 #include "ArduinoLowPower.h"
 
 // Pins
+const int serial_enable_pin = 6;
 const int button_pin = 5;
 const int chip_select_pin = 4;
 const int green_led = 8;
@@ -28,10 +29,15 @@ void setup() {
   digitalWrite(LED_BUILTIN, HIGH);
   digitalWrite(green_led, HIGH);
 
+  pinMode(serial_enable_pin, INPUT);
+
   // Open serial communications and wait for port to open
+  // if the serial enable pin is high.
   Serial.begin(31969);
-  while (!Serial) {
-    delayMicroseconds(100000);
+  if (digitalRead(serial_enable_pin) == HIGH) {
+    while (!Serial) {
+      delayMicroseconds(100000);
+    }
   }
 
   Serial.println("Starting setup");
