@@ -1,37 +1,51 @@
 #include <SPI.h>
 #include <SD.h>
 #include "Adafruit_Si7021.h"
+#include "uTimerLib.h"
+#include "ArduinoLowPower.h"
 
 // Pins
 const int buttonPin = 5;
 const int chipSelectPin = 4;
+const int greenLed = 8;
 
 // TODO: Read chunk / cluster size from filesystem? Read SD card preferred write size?
 const uint64_t write_chunk = 4096;
-const uint64_t poll_ms = 5000;
+const uint64_t sensor_seconds = 5;
 const unsigned long debounce_ms = 50;
+const unsigned long button_ms = 200;
+
+volatile bool button_pressed = false;
+volatile unsigned long press_timestamp;
 
 File dataFile;
 Adafruit_Si7021 sensor;
 
 void setup() {
-  // Open serial communications and wait for port to open:
+  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(greenLed, OUTPUT);
+
+  // Turn on both LEDs during setup.
+  // TODO: Blink codes for errors?
+  digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(greenLed, HIGH);
+
+  // Open serial communications and wait for port to open
   Serial.begin(9600);
   while (!Serial) {
     delay(100); // wait for serial port to connect. Needed for native USB port only
   }
 
-  Serial.println("Starting up...");
-
-  pinMode(buttonPin, INPUT_PULLUP);
-  pinMode(LED_BUILTIN, OUTPUT);
+  Serial.println("Setting up...");
 
   if (!SD.begin(chipSelectPin)) {
     Serial.println("MicroSD card failed, or not present.");
     while (true);
   }
 
-  Serial.println("MicroSD card initialized.");
+  pinMode(buttonPin, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(buttonPin), button_down, FALLING);
+  attachInterrupt(digitalPinToInterrupt(buttonPin), button_up, RISING);
 
   sensor = Adafruit_Si7021();
   if (!sensor.begin()) {
@@ -64,76 +78,59 @@ void setup() {
     while (true);
   }
 
+  TimerLib.setInterval_s(log_sensor, sensor_seconds);
+
+  // Turn off LEDs to indicate setup finished.
+  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(greenLed, LOW);
+
   Serial.println("Setup complete");
 }
 
-uint64_t previous_flush = 0;
 void loop() {
-  static unsigned long previous_run = 0;
-
-  // TODO: This'll overflow after 50 days - is it necessary to handle it? Doesn't seem like it - failure mode is previous_run is huge and timestamp is small; it might poll sooner than without the problem but that doesn't seem to matter.
-  unsigned long timestamp = millis();
-  unsigned long duration = timestamp - previous_run;
-
-  // Manual log flush
-  if (button_on_press()) {
+  Serial.println("Checking button");
+  // Manual log file flush if the button down survives debouncing.
+  if (button_pressed == true && (millis() - press_timestamp) > debounce_ms) {
     flush_log();
+    button_pressed = false;
   }
 
-  if (duration < poll_ms) {
-    return;
-  }
+  LowPower.idle(button_ms);
+}
 
-  previous_run = timestamp;
+void log_sensor() {
+  static uint64_t previous_flush = 0;
 
-  // <millseconds> <temperature> <humidity>\n
-  dataFile.write(String(timestamp).c_str());
+  // <seconds> <temperature> <humidity>\n
+  // Blink LED while reading sensor / composing output
+  digitalWrite(LED_BUILTIN, HIGH);
+  dataFile.write(String(millis() / 1000).c_str());
   dataFile.write(",");
-  dataFile.write(String(sensor.readTemperature(), 2).c_str());
+  dataFile.write(String(sensor.readTemperature()).c_str());
   dataFile.write(",");
-  dataFile.write(String(sensor.readHumidity(), 2).c_str());
+  dataFile.write(String(sensor.readHumidity()).c_str());
   dataFile.write("\n");
+  digitalWrite(LED_BUILTIN, LOW);
 
   uint64_t current_position = dataFile.position();
   if (current_position - previous_flush > write_chunk) {
     flush_log();
     previous_flush = current_position;
-  } 
+  }
 }
 
 void flush_log() {
   Serial.println("Flushing file");
-  digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(greenLed, HIGH);
   dataFile.flush();
-  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(greenLed, LOW);
 }
 
-// Return true when button, after debouncing, goes from not pressed the previous call to pressed. Return false otherwise.
-bool button_on_press() {
-  static int previous_reading = 0;
-  static unsigned int previous_change_ms = 0;
-  static int debounced_button = HIGH;
+void button_down() {
+  button_pressed = true;
+  press_timestamp = millis();
+}
 
-  bool on_press = false;
-  
-  int reading = digitalRead(buttonPin);
-  if (previous_reading != reading) {
-    previous_change_ms = millis();
-  }
-
-  // Consider a reading if it hasn't changed for the debounce period.
-  if (millis() - previous_change_ms > debounce_ms) {
-    if (debounced_button != reading) {
-      debounced_button = reading;
-
-      // Read is LOW when button is pressed. 
-      if (reading == LOW) {
-        on_press = true;
-      }
-    }
-  }
-
-  previous_reading = reading;
-  
-  return on_press;
+void button_up() {
+  button_pressed = false;
 }
