@@ -42,24 +42,34 @@ void setup() {
 
   Serial.println("Starting setup");
 
-  // Failed to find MicroSD card: solid green.
+  // Failed to find MicroSD card: blinking green.
   if (!SD.begin(chip_select_pin)) {
     Serial.println("MicroSD card failed, or not present.");
+
     digitalWrite(LED_BUILTIN, LOW);
-    digitalWrite(green_led, HIGH);
-    while (true);
+    while (true) {
+      digitalWrite(green_led, HIGH);
+      delayMicroseconds(500000);
+      digitalWrite(green_led, LOW);
+      delayMicroseconds(500000);
+    }
   }
 
   pinMode(button_pin, INPUT_PULLUP);
   LowPower.attachInterruptWakeup(digitalPinToInterrupt(button_pin), button_down, FALLING);
 
-  // Failed to find sensor: solid red.
+  // Failed to find sensor: blinking red.
   sensor = Adafruit_Si7021();
   if (!sensor.begin()) {
     Serial.println("Si7021 sensor not found.");
-    digitalWrite(LED_BUILTIN, HIGH);
+
     digitalWrite(green_led, LOW);
-    while (true);
+    while (true) {
+      digitalWrite(LED_BUILTIN, HIGH);
+      delayMicroseconds(500000);
+      digitalWrite(LED_BUILTIN, LOW);
+      delayMicroseconds(500000);
+    }
   }
 
   Serial.print("Found sensor model ");
@@ -81,15 +91,17 @@ void setup() {
   Serial.print(")");
   Serial.print(" Serial #"); Serial.print(sensor.sernum_a, HEX); Serial.println(sensor.sernum_b, HEX);
 
-  // Failed to open data file: blinking green.
+  // Failed to open data file: blinking red and green.
   dataFile = SD.open("datalog.txt", FILE_WRITE);
   if (!dataFile) {
     Serial.println("Failed to open datalog.txt");
-    digitalWrite(LED_BUILTIN, LOW);
+
     while (true) {
       digitalWrite(green_led, HIGH);
+      digitalWrite(LED_BUILTIN, HIGH);
       delayMicroseconds(500000);
       digitalWrite(green_led, LOW);
+      digitalWrite(LED_BUILTIN, LOW);
       delayMicroseconds(500000);
     }
   }
