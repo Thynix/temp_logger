@@ -34,11 +34,17 @@ void setup() {
   pinMode(serial_enable_pin, INPUT);
 
   // Open serial communications and wait for port to open
-  // if the serial enable pin is high.
-  Serial.begin(31969);
+  // if the serial enable pin is high. While waiting,
+  // blink red then green.
+  Serial.begin(9600);
   if (digitalRead(serial_enable_pin) == HIGH) {
     while (!Serial) {
-      delayMicroseconds(100000);
+      digitalWrite(green_led, LOW);
+      digitalWrite(red_led, HIGH);
+      delayMicroseconds(500000);
+      digitalWrite(green_led, HIGH);
+      digitalWrite(red_led, LOW);
+      delayMicroseconds(500000);
     }
   }
 
