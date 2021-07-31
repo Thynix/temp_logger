@@ -17,6 +17,7 @@ const unsigned long debounce_microseconds = 20000;
 
 volatile unsigned long button_last_down = 0;
 volatile bool button_pressed = false;
+volatile bool sensor_read_pending = false;
 
 File dataFile;
 Adafruit_Si7021 sensor;
@@ -121,6 +122,12 @@ void loop() {
     flush_log();
     button_pressed = false;
   }
+
+  if (sensor_read_pending) {
+    log_sensor();
+    sensor_read_pending = false;
+  }
+
   LowPower.idle();
 }
 
@@ -157,4 +164,8 @@ void button_down() {
     button_last_down = micros();
     button_pressed = true;
   }
+}
+
+void flag_sensor() {
+  sensor_read_pending = true;
 }
