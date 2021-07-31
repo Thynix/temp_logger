@@ -9,6 +9,7 @@ const int serial_enable_pin = 6;
 const int button_pin = 5;
 const int chip_select_pin = 4;
 const int green_led = 8;
+const int red_led = LED_BUILTIN;
 
 // TODO: Read chunk / cluster size from filesystem? Read SD card preferred write size?
 const uint64_t write_chunk = 4096;
@@ -23,11 +24,11 @@ File dataFile;
 Adafruit_Si7021 sensor;
 
 void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(red_led, OUTPUT);
   pinMode(green_led, OUTPUT);
 
   // Turn on both LEDs during setup.
-  digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(red_led, HIGH);
   digitalWrite(green_led, HIGH);
 
   pinMode(serial_enable_pin, INPUT);
@@ -43,11 +44,11 @@ void setup() {
 
   Serial.println("Starting setup");
 
-  // Failed to find MicroSD card: blinking green.
+  // Failed to find MicroSD card: blink green.
   if (!SD.begin(chip_select_pin)) {
     Serial.println("MicroSD card failed, or not present.");
 
-    digitalWrite(LED_BUILTIN, LOW);
+    digitalWrite(red_led, LOW);
     while (true) {
       digitalWrite(green_led, HIGH);
       delayMicroseconds(500000);
@@ -59,16 +60,16 @@ void setup() {
   pinMode(button_pin, INPUT_PULLUP);
   LowPower.attachInterruptWakeup(digitalPinToInterrupt(button_pin), button_down, FALLING);
 
-  // Failed to find sensor: blinking red.
+  // Failed to find sensor: blink red.
   sensor = Adafruit_Si7021();
   if (!sensor.begin()) {
     Serial.println("Si7021 sensor not found.");
 
     digitalWrite(green_led, LOW);
     while (true) {
-      digitalWrite(LED_BUILTIN, HIGH);
+      digitalWrite(red_led, HIGH);
       delayMicroseconds(500000);
-      digitalWrite(LED_BUILTIN, LOW);
+      digitalWrite(red_led, LOW);
       delayMicroseconds(500000);
     }
   }
@@ -92,29 +93,29 @@ void setup() {
   Serial.print(")");
   Serial.print(" Serial #"); Serial.print(sensor.sernum_a, HEX); Serial.println(sensor.sernum_b, HEX);
 
-  // Failed to open data file: blinking red and green.
+  // Failed to open data file: blink red and green at once.
   dataFile = SD.open("datalog.txt", FILE_WRITE);
   if (!dataFile) {
     Serial.println("Failed to open datalog.txt");
 
     while (true) {
       digitalWrite(green_led, HIGH);
-      digitalWrite(LED_BUILTIN, HIGH);
+      digitalWrite(red_led, HIGH);
       delayMicroseconds(500000);
       digitalWrite(green_led, LOW);
-      digitalWrite(LED_BUILTIN, LOW);
+      digitalWrite(red_led, LOW);
       delayMicroseconds(500000);
     }
   }
 
-  TimerLib.setInterval_s(log_sensor, sensor_seconds);
-
-  // Turn off LEDs to indicate setup finished.
-  digitalWrite(LED_BUILTIN, LOW);
-  digitalWrite(green_led, LOW);
+  TimerLib.setInterval_s(flag_sensor, sensor_seconds);
 
   Serial.println("Setup complete");
   Serial.flush();
+
+  // Turn off LEDs to indicate setup finished.
+  digitalWrite(red_led, LOW);
+  digitalWrite(green_led, LOW);
 }
 
 void loop() {
@@ -137,14 +138,14 @@ void log_sensor() {
   // <seconds> <temperature> <humidity>\n
   // Blink LED while reading sensor / composing output
   // TODO: More than one sample from sensor.
-  digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(red_led, HIGH);
   dataFile.write(String((float)millis() / 1000).c_str());
   dataFile.write(",");
   dataFile.write(String(sensor.readTemperature()).c_str());
   dataFile.write(",");
   dataFile.write(String(sensor.readHumidity()).c_str());
   dataFile.write("\n");
-  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(red_led, LOW);
 
   uint64_t current_position = dataFile.position();
   if (current_position - previous_flush > write_chunk) {
