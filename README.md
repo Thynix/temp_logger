@@ -6,5 +6,3 @@ Log temperature and humidity to a MicroSD card.
 
 * Adafruit Adalogger
 * Adafruit Si7021
-
-TODO: Determine how to license
